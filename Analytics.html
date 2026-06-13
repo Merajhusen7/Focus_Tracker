@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FocusTrack — Insights</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --bg:#0a0e1a; --surface:#131929; --surface2:#1a2238; --surface3:#202c42;
+      --border:#253049; --mint:#00f5a0; --mint-dim:rgba(0,245,160,0.12);
+      --mint-glow:rgba(0,245,160,0.35); --amber:#f5a623;
+      --amber-dim:rgba(245,166,35,0.13); --blue:#4f8ef7; --purple:#9b6dff;
+      --red:#ff5f6d; --text:#e8edf5; --muted:#8892a4; --faint:#2a3550;
+      --radius:14px; --radius-sm:8px;
+    }
+    html { scroll-behavior:smooth; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+    .app { max-width:1000px; margin:0 auto; padding:28px 20px 60px; }
+
+    /* ── HEADER ── */
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:12px; }
+    .logo { display:flex; align-items:center; gap:12px; }
+    .logo-icon { width:40px; height:40px; background:var(--mint-dim); border:1.5px solid var(--mint); border-radius:10px; display:grid; place-items:center; font-size:20px; box-shadow:0 0 18px var(--mint-glow); }
+    .logo h1 { font-family:'Space Grotesk',sans-serif; font-size:1.4rem; font-weight:700; letter-spacing:-0.5px; }
+    .logo h1 span { color:var(--mint); }
+    .page-subtitle { font-size:0.78rem; color:var(--muted); margin-top:2px; }
+    .nav-btn { display:flex; align-items:center; gap:7px; padding:7px 16px; background:var(--surface2); border:1px solid var(--border); border-radius:30px; color:var(--muted); font-size:0.8rem; font-weight:600; cursor:pointer; text-decoration:none; transition:all 0.15s; }
+    .nav-btn:hover { border-color:var(--mint); color:var(--mint); background:var(--mint-dim); }
+    .nav-btn svg { width:14px; height:14px; stroke:currentColor; fill:none; }
+
+    /* ── RANGE FILTER ── */
+    .range-bar { display:flex; gap:6px; margin-bottom:24px; flex-wrap:wrap; }
+    .range-btn { padding:7px 18px; background:var(--surface); border:1px solid var(--border); border-radius:30px; color:var(--muted); font-size:0.78rem; font-weight:600; cursor:pointer; transition:all 0.15s; font-family:'Inter',sans-serif; }
+    .range-btn.active { background:var(--mint-dim); border-color:var(--mint); color:var(--mint); }
+    .range-btn:hover:not(.active) { color:var(--text); border-color:var(--faint); }
+
+    /* ── STAT CARDS ROW ── */
+    .stat-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    @media(max-width:640px){ .stat-cards { grid-template-columns:repeat(2,1fr); } }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 16px; position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+    .stat-card.c-mint::before { background:linear-gradient(90deg,var(--mint),transparent); }
+    .stat-card.c-amber::before { background:linear-gradient(90deg,var(--amber),transparent); }
+    .stat-card.c-blue::before { background:linear-gradient(90deg,var(--blue),transparent); }
+    .stat-card.c-purple::before { background:linear-gradient(90deg,var(--purple),transparent); }
+    .sc-val { font-family:'Space Grotesk',sans-serif; font-size:1.9rem; font-weight:700; line-height:1; }
+    .c-mint .sc-val { color:var(--mint); }
+    .c-amber .sc-val { color:var(--amber); }
+    .c-blue .sc-val { color:var(--blue); }
+    .c-purple .sc-val { color:var(--purple); }
+    .sc-lbl { font-size:0.72rem; color:var(--muted); margin-top:5px; }
+    .sc-sub { font-size:0.68rem; color:var(--faint); margin-top:3px; }
+
+    /* ── PANELS ── */
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; margin-bottom:20px; }
+    .panel-title { font-family:'Space Grotesk',sans-serif; font-size:0.72rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+    .panel-title span { font-size:1rem; }
+
+    /* ── CALENDAR TIME GRID ── */
+    .cal-wrap { display:flex; gap:0; overflow:hidden; border-radius:10px; border:1px solid var(--border); }
+    .time-col { display:flex; flex-direction:column; min-width:44px; border-right:1px solid var(--border); flex-shrink:0; }
+    .time-col-head { height:36px; border-bottom:1px solid var(--border); background:var(--surface2); }
+    .time-label { height:48px; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-size:0.65rem; color:var(--muted); font-weight:500; border-bottom:1px solid var(--faint); flex-shrink:0; }
+    .days-area { flex:1; display:flex; flex-direction:column; min-width:0; }
+    .days-head { display:grid; height:36px; border-bottom:1px solid var(--border); background:var(--surface2); }
+    .day-head-cell { display:flex; flex-direction:column; align-items:center; justify-content:center; border-left:1px solid var(--border); }
+    .day-head-cell:first-child { border-left:none; }
+    .dhc-name { font-size:0.62rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+    .dhc-name.today-name { color:var(--mint); }
+    .dhc-num { font-family:'Space Grotesk',sans-serif; font-size:0.95rem; font-weight:700; line-height:1; }
+    .dhc-num.today-num { color:var(--mint); }
+    .hours-body { flex:1; display:flex; overflow:hidden; }
+    .hours-col { flex:1; display:flex; flex-direction:column; border-left:1px solid var(--border); min-width:0; }
+    .hours-col:first-child { border-left:none; }
+    .hour-cell { height:48px; border-bottom:1px solid var(--faint); position:relative; flex-shrink:0; }
+
+    /* Session block in the calendar */
+    .session-block {
+      position:absolute; left:3px; right:3px;
+      border-radius:5px; display:flex; align-items:center;
+      justify-content:center; overflow:hidden; cursor:default;
+      font-size:0.6rem; font-weight:700; letter-spacing:0.5px;
+      transition:filter 0.15s;
+    }
+    .session-block:hover { filter:brightness(1.15); }
+    /* colour varies by count in that cell */
+    .sb-1 { background:rgba(0,245,160,0.3); color:var(--mint); border:1px solid rgba(0,245,160,0.5); }
+    .sb-2 { background:rgba(0,245,160,0.5); color:#0a0e1a; border:1px solid rgba(0,245,160,0.7); }
+    .sb-3plus { background:var(--mint); color:#0a0e1a; border:1px solid var(--mint); }
+
+    /* ── HEATMAP: Hour-of-day ── */
+    .hour-heatmap { display:flex; flex-direction:column; gap:6px; }
+    .hm-row { display:flex; align-items:center; gap:8px; }
+    .hm-label { font-size:0.68rem; color:var(--muted); width:44px; text-align:right; flex-shrink:0; font-weight:500; }
+    .hm-bar-wrap { flex:1; height:22px; background:var(--faint); border-radius:4px; overflow:hidden; position:relative; }
+    .hm-bar { height:100%; border-radius:4px; transition:width 0.5s ease; display:flex; align-items:center; padding-left:8px; }
+    .hm-bar span { font-size:0.65rem; font-weight:700; white-space:nowrap; }
+    .hm-peak { background:linear-gradient(90deg,var(--mint),#00c080); color:#0a0e1a; }
+    .hm-mid  { background:linear-gradient(90deg,rgba(0,245,160,0.55),rgba(0,200,128,0.55)); color:var(--text); }
+    .hm-low  { background:rgba(0,245,160,0.2); color:var(--muted); }
+
+    /* ── DAY-OF-WEEK RADAR ── */
+    .dow-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+    .dow-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 8px; text-align:center; position:relative; overflow:hidden; transition:border-color 0.15s; }
+    .dow-card.best-day { border-color:var(--mint); }
+    .dow-card-name { font-size:0.68rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+    .dow-card.best-day .dow-card-name { color:var(--mint); }
+    .dow-card-val { font-family:'Space Grotesk',sans-serif; font-size:1.3rem; font-weight:700; color:var(--text); }
+    .dow-card-sub { font-size:0.62rem; color:var(--muted); margin-top:3px; }
+    .dow-fill { position:absolute; bottom:0; left:0; right:0; background:var(--mint-dim); transition:height 0.5s ease; }
+
+    /* ── INSIGHTS FEED ── */
+    .insights-list { display:flex; flex-direction:column; gap:10px; }
+    .insight-row { display:flex; align-items:flex-start; gap:12px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+    .insight-icon { font-size:1.3rem; flex-shrink:0; margin-top:1px; }
+    .insight-title { font-family:'Space Grotesk',sans-serif; font-size:0.88rem; font-weight:700; }
+    .insight-body { font-size:0.78rem; color:var(--muted); margin-top:3px; line-height:1.5; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state { text-align:center; padding:48px 20px; color:var(--muted); }
+    .empty-state .es-icon { font-size:2.5rem; margin-bottom:12px; }
+    .empty-state p { font-size:0.88rem; line-height:1.6; }
+    .empty-state a { color:var(--mint); text-decoration:none; }
+
+    /* ── WEEK NAV ── */
+    .week-nav { display:flex; align-items:center; gap:10px; }
+    .week-nav button { background:var(--surface2); border:1px solid var(--border); color:var(--muted); width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:1rem; transition:all 0.15s; display:grid; place-items:center; }
+    .week-nav button:hover { color:var(--text); border-color:var(--mint); }
+    .week-nav-label { font-family:'Space Grotesk',sans-serif; font-size:0.88rem; font-weight:600; min-width:160px; text-align:center; }
+
+    /* tooltip */
+    .tooltip { position:fixed; background:var(--surface3); border:1px solid var(--border); color:var(--text); padding:6px 12px; border-radius:8px; font-size:0.75rem; pointer-events:none; z-index:100; opacity:0; transition:opacity 0.15s; white-space:nowrap; }
+    .tooltip.show { opacity:1; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">📊</div>
+      <div>
+        <h1>Focus<span>Track</span></h1>
+        <div class="page-subtitle">Productivity Insights</div>
+      </div>
+    </div>
+    <a href="index.html" class="nav-btn">
+      <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Back to Timer
+    </a>
+  </header>
+
+  <!-- RANGE FILTER -->
+  <div class="range-bar">
+    <button class="range-btn" onclick="setRange('7')" id="r7">Last 7 days</button>
+    <button class="range-btn active" onclick="setRange('30')" id="r30">Last 30 days</button>
+    <button class="range-btn" onclick="setRange('90')" id="r90">Last 90 days</button>
+    <button class="range-btn" onclick="setRange('all')" id="rall">All time</button>
+  </div>
+
+  <!-- STAT CARDS -->
+  <div class="stat-cards" id="statCards"></div>
+
+  <!-- CALENDAR TIME GRID -->
+  <div class="panel" id="calPanel">
+    <div class="panel-title" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <span><span>📅</span> Focus Calendar — this week</span>
+      <div class="week-nav">
+        <button onclick="shiftWeek(-1)">‹</button>
+        <span class="week-nav-label" id="weekNavLabel"></span>
+        <button onclick="shiftWeek(1)">›</button>
+      </div>
+    </div>
+    <div class="cal-wrap" id="calGrid"></div>
+  </div>
+
+  <!-- HOUR HEATMAP -->
+  <div class="panel" id="hourPanel">
+    <div class="panel-title"><span>🕐</span> Best Hours to Study</div>
+    <div class="hour-heatmap" id="hourHeatmap"></div>
+  </div>
+
+  <!-- DAY OF WEEK -->
+  <div class="panel">
+    <div class="panel-title"><span>📆</span> Most Productive Days</div>
+    <div class="dow-grid" id="dowGrid"></div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="panel">
+    <div class="panel-title"><span>💡</span> Insights</div>
+    <div class="insights-list" id="insightsList"></div>
+  </div>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ── STORAGE ──────────────────────────────────────
+const KEY    = 'focustrack_v1';
+const TS_KEY = 'focustrack_ts';
+function loadData() { try { return JSON.parse(localStorage.getItem(KEY))    || {}; } catch { return {}; } }
+function loadTS()   { try { return JSON.parse(localStorage.getItem(TS_KEY)) || []; } catch { return []; } }
+function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+// ── STATE ─────────────────────────────────────────
+let rangeDays = 30;
+let weekOffset = 0; // 0 = current week, -1 = last week, etc.
+
+function setRange(r) {
+  rangeDays = r === 'all' ? 99999 : parseInt(r);
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('r' + r).classList.add('active');
+  render();
+}
+function shiftWeek(dir) {
+  weekOffset += dir;
+  if (weekOffset > 0) weekOffset = 0;
+  renderCalendar();
+}
+
+// ── DATA HELPERS ─────────────────────────────────
+function getTimestamps(days) {
+  const all = loadTS();
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+  return all.map(t => new Date(t)).filter(d => d >= cutoff);
+}
+
+// For days that have session counts but no timestamps (old data), synthesise noon timestamps
+function getAllSessions(days) {
+  const real = getTimestamps(days);
+  const realByDay = {};
+  real.forEach(d => { const k = dateKey(d); realByDay[k] = (realByDay[k]||0)+1; });
+
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
+  const data = loadData();
+  const synth = [];
+  Object.entries(data).forEach(([k,n]) => {
+    const d = new Date(k+'T12:00:00');
+    if (d < cutoff) return;
+    const real_n = realByDay[k] || 0;
+    for (let i = real_n; i < n; i++) synth.push(new Date(k+'T12:00:00'));
+  });
+  return [...real, ...synth].sort((a,b) => a-b);
+}
+
+// ── RENDER ALL ────────────────────────────────────
+function render() {
+  const sessions = getAllSessions(rangeDays);
+  renderStats(sessions);
+  renderHourHeatmap(sessions);
+  renderDowGrid(sessions);
+  renderInsights(sessions);
+  renderCalendar();
+}
+
+// ── STAT CARDS ────────────────────────────────────
+function renderStats(sessions) {
+  const total = sessions.length;
+  const hours = Math.round(total*25/60*10)/10;
+  // best day
+  const byDay = {};
+  sessions.forEach(d => { const k=dateKey(d); byDay[k]=(byDay[k]||0)+1; });
+  const bestDay = Math.max(0, ...Object.values(byDay));
+  // active days
+  const activeDays = Object.keys(byDay).length;
+  const label = rangeDays >= 99999 ? 'all time' : `last ${rangeDays}d`;
+
+  document.getElementById('statCards').innerHTML = `
+    <div class="stat-card c-mint">
+      <div class="sc-val">${total}</div>
+      <div class="sc-lbl">Sessions (${label})</div>
+      <div class="sc-sub">${total*25} minutes focused</div>
+    </div>
+    <div class="stat-card c-amber">
+      <div class="sc-val">${hours}h</div>
+      <div class="sc-lbl">Deep work hours</div>
+      <div class="sc-sub">${activeDays} active days</div>
+    </div>
+    <div class="stat-card c-blue">
+      <div class="sc-val">${activeDays > 0 ? (total/activeDays).toFixed(1) : 0}</div>
+      <div class="sc-lbl">Avg sessions / day</div>
+      <div class="sc-sub">On days you studied</div>
+    </div>
+    <div class="stat-card c-purple">
+      <div class="sc-val">${bestDay}</div>
+      <div class="sc-lbl">Best day ever</div>
+      <div class="sc-sub">${bestDay*25} min in one day</div>
+    </div>`;
+}
+
+// ── CALENDAR GRID ─────────────────────────────────
+const HOUR_START = 6;  // 6 AM
+const HOUR_END   = 23; // 11 PM
+const HOUR_COUNT = HOUR_END - HOUR_START + 1;
+const CELL_H     = 48; // px per hour
+
+function renderCalendar() {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay()+6)%7) + weekOffset*7);
+  monday.setHours(0,0,0,0);
+
+  // Build week label
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+  const fmt = (d) => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  document.getElementById('weekNavLabel').textContent = `${fmt(monday)} – ${fmt(sunday)}`;
+
+  // Collect sessions for this week
+  const weekSessions = loadTS()
+    .map(t => new Date(t))
+    .filter(d => { const t=d.getTime(); return t>=monday.getTime() && t<monday.getTime()+7*86400000; });
+
+  // Also add synthesised sessions from old data
+  const data = loadData();
+  for (let i=0;i<7;i++) {
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    const k = dateKey(d);
+    const realCount = weekSessions.filter(s => dateKey(s)===k).length;
+    const total = data[k] || 0;
+    for (let j=realCount; j<total; j++) {
+      const synth = new Date(d); synth.setHours(12,0,0,0);
+      weekSessions.push(synth);
+    }
+  }
+
+  // Group by day + hour
+  const grid = {}; // grid[dayIdx][hour] = count
+  for (let i=0;i<7;i++) grid[i] = {};
+  weekSessions.forEach(s => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate());
+    const diff = s.getDay() === 0 ? 6 : s.getDay()-1; // Mon=0
+    const dayIdx = Math.floor((s.getTime()-monday.getTime())/86400000);
+    if (dayIdx < 0 || dayIdx > 6) return;
+    const h = s.getHours();
+    if (h < HOUR_START || h > HOUR_END) return;
+    grid[dayIdx][h] = (grid[dayIdx][h]||0)+1;
+  });
+
+  const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const todayStr = dateKey(new Date());
+
+  // Build HTML
+  let html = '';
+
+  // Time column
+  html += `<div class="time-col"><div class="time-col-head"></div>`;
+  for (let h=HOUR_START; h<=HOUR_END; h++) {
+    const label = h === 12 ? '12 PM' : h < 12 ? `${h} AM` : `${h-12} PM`;
+    html += `<div class="time-label">${label}</div>`;
+  }
+  html += `</div>`;
+
+  // Days area
+  html += `<div class="days-area">`;
+
+  // Header row
+  html += `<div class="days-head" style="grid-template-columns:repeat(7,1fr)">`;
+  for (let i=0;i<7;i++) {
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    const isToday = dateKey(d) === todayStr;
+    html += `<div class="day-head-cell">
+      <div class="dhc-name ${isToday?'today-name':''}">${DAY_NAMES[i]}</div>
+      <div class="dhc-num ${isToday?'today-num':''}">${d.getDate()}</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Body: hours × days
+  html += `<div class="hours-body">`;
+  for (let i=0;i<7;i++) {
+    html += `<div class="hours-col">`;
+    for (let h=HOUR_START; h<=HOUR_END; h++) {
+      const count = grid[i][h] || 0;
+      html += `<div class="hour-cell">`;
+      if (count > 0) {
+        const cls = count === 1 ? 'sb-1' : count === 2 ? 'sb-2' : 'sb-3plus';
+        const top = 3, height = CELL_H - 6;
+        const label = count === 1 ? '25m' : count >= 2 ? `${count}×25m` : '';
+        html += `<div class="session-block ${cls}"
+          style="top:${top}px; height:${height}px;"
+          data-tip="${count} session${count>1?'s':''} · ${count*25}min focused"
+          onmouseenter="showTip(event,this)" onmouseleave="hideTip()">${label}</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div></div>`; // hours-body + days-area
+
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+// ── HOUR HEATMAP ─────────────────────────────────
+function renderHourHeatmap(sessions) {
+  if (sessions.length === 0) {
+    document.getElementById('hourHeatmap').innerHTML = `<div class="empty-state"><div class="es-icon">🕰️</div><p>No sessions yet. Start studying and your peak hours will appear here.</p></div>`;
+    return;
+  }
+
+  // Count per hour
+  const hourCounts = new Array(24).fill(0);
+  sessions.forEach(d => {
+    if (d.getHours() !== 12 || !loadTS().length) { // skip synthesised noon unless real
+      hourCounts[d.getHours()]++;
+    }
+  });
+  // Also handle synthesised data
+  const allTS = loadTS();
+  if (allTS.length < sessions.length) {
+    // there are synthesised sessions — just use all
+    const hc2 = new Array(24).fill(0);
+    sessions.forEach(d => hc2[d.getHours()]++);
+    hc2.forEach((v,i) => hourCounts[i] = v);
+  }
+
+  const max = Math.max(...hourCounts, 1);
+  const SHOW_HOURS = [];
+  for (let h=5; h<=23; h++) if (hourCounts[h]>0 || (h>=7&&h<=22)) SHOW_HOURS.push(h);
+
+  let html = '';
+  SHOW_HOURS.forEach(h => {
+    const n = hourCounts[h];
+    const pct = Math.max(n/max*100, n>0?4:0);
+    const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h===12 ? '12 PM' : `${h-12} PM`;
+    const tier = pct > 60 ? 'hm-peak' : pct > 20 ? 'hm-mid' : 'hm-low';
+    const showCount = n > 0 ? `${n} session${n>1?'s':''}` : '';
+    html += `<div class="hm-row">
+      <div class="hm-label">${label}</div>
+      <div class="hm-bar-wrap">
+        <div class="hm-bar ${tier}" style="width:${pct}%">
+          ${n>0?`<span>${showCount}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('hourHeatmap').innerHTML = html;
+}
+
+// ── DAY-OF-WEEK GRID ─────────────────────────────
+function renderDowGrid(sessions) {
+  const DOW_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const counts = new Array(7).fill(0);
+  sessions.forEach(d => {
+    const dow = d.getDay() === 0 ? 6 : d.getDay()-1; // Mon=0
+    counts[dow]++;
+  });
+  const max = Math.max(...counts, 1);
+  const bestIdx = counts.indexOf(Math.max(...counts));
+
+  let html = '';
+  for (let i=0; i<7; i++) {
+    const n = counts[i];
+    const pct = (n/max)*80; // max 80% fill height
+    const isBest = i === bestIdx && n > 0;
+    html += `<div class="dow-card${isBest?' best-day':''}">
+      <div class="dow-fill" style="height:${pct}%"></div>
+      <div style="position:relative">
+        <div class="dow-card-name">${DOW_NAMES[i]}</div>
+        <div class="dow-card-val">${n}</div>
+        <div class="dow-card-sub">${Math.round(n*25/60*10)/10}h</div>
+      </div>
+    </div>`;
+  }
+  document.getElementById('dowGrid').innerHTML = html;
+}
+
+// ── INSIGHTS ─────────────────────────────────────
+function renderInsights(sessions) {
+  if (sessions.length === 0) {
+    document.getElementById('insightsList').innerHTML = `<div class="empty-state"><div class="es-icon">✨</div><p>Complete some sessions on <a href="index.html">the timer page</a> and insights will appear here.</p></div>`;
+    return;
+  }
+
+  const insights = [];
+
+  // Hour analysis
+  const hourCounts = new Array(24).fill(0);
+  sessions.forEach(d => hourCounts[d.getHours()]++);
+  const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+  const ph = peakHour < 12 ? `${peakHour} AM` : peakHour===12 ? '12 PM' : `${peakHour-12} PM`;
+  if (hourCounts[peakHour] > 0) {
+    const amPm = peakHour < 12 ? 'morning' : peakHour < 17 ? 'afternoon' : 'evening';
+    insights.push({ icon:'⚡', title:`You peak at ${ph}`, body:`Your highest concentration of study sessions happens around ${ph}. You're a ${amPm} studier — protect that window!` });
+  }
+
+  // Day analysis
+  const DOW_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dowCounts = new Array(7).fill(0);
+  sessions.forEach(d => { const dow = d.getDay()===0?6:d.getDay()-1; dowCounts[dow]++; });
+  const bestDow = dowCounts.indexOf(Math.max(...dowCounts));
+  if (dowCounts[bestDow] > 0) {
+    insights.push({ icon:'📆', title:`${DOW_NAMES[bestDow]} is your power day`, body:`You've logged more sessions on ${DOW_NAMES[bestDow]} than any other day. Consider scheduling your hardest topics then.` });
+  }
+
+  // Streak
+  const data = loadData();
+  let streak = 0;
+  const check = new Date();
+  while (true) {
+    const k = dateKey(check);
+    if ((data[k]||0) > 0) { streak++; check.setDate(check.getDate()-1); }
+    else break;
+    if (streak > 365) break;
+  }
+  if (streak >= 2) insights.push({ icon:'🔥', title:`${streak}-day streak!`, body:`You've studied on ${streak} consecutive days. Consistency compounds — keep it going!` });
+
+  // Weekend vs weekday
+  const weekendTotal = dowCounts[5]+dowCounts[6];
+  const weekdayTotal = dowCounts.slice(0,5).reduce((a,b)=>a+b,0);
+  if (weekendTotal > weekdayTotal/5*2) {
+    insights.push({ icon:'🏖️', title:'You study hard on weekends', body:`Weekend sessions outnumber weekday average. You hustle when others relax.` });
+  } else if (weekendTotal < weekdayTotal/5*0.5 && sessions.length > 5) {
+    insights.push({ icon:'💼', title:'Strong weekday discipline', body:`You mostly study Mon–Fri. Your work ethic is consistent — even small weekend sessions could push you further.` });
+  }
+
+  // Avg per day
+  const byDay = {};
+  sessions.forEach(d => { const k=dateKey(d); byDay[k]=(byDay[k]||0)+1; });
+  const activeDays = Object.keys(byDay).length;
+  const avg = activeDays > 0 ? (sessions.length/activeDays).toFixed(1) : 0;
+  if (avg >= 4) insights.push({ icon:'🚀', title:`Averaging ${avg} sessions/day`, body:`That's ${Math.round(avg*25)} min of daily deep work on your active days. You're in elite territory.` });
+  else if (avg >= 2) insights.push({ icon:'📈', title:`Averaging ${avg} sessions/day`, body:`Good momentum! Pushing to 4+ sessions daily would put you above 90% of learners.` });
+
+  // Morning vs evening
+  const morningCount = sessions.filter(d=>d.getHours()>=5&&d.getHours()<12).length;
+  const eveningCount = sessions.filter(d=>d.getHours()>=18).length;
+  if (morningCount > eveningCount*2 && morningCount > 3) {
+    insights.push({ icon:'🌅', title:'Early bird studier', body:`Most of your sessions happen before noon. Morning study is linked to better retention — you've cracked the code.` });
+  } else if (eveningCount > morningCount*2 && eveningCount > 3) {
+    insights.push({ icon:'🌙', title:'Night owl studier', body:`You do your best work in the evening. Make sure to wind down properly — sleep consolidates everything you've learned.` });
+  }
+
+  if (insights.length === 0) {
+    insights.push({ icon:'🌱', title:'Keep going!', body:`Log more sessions and patterns will emerge here. Every session counts.` });
+  }
+
+  document.getElementById('insightsList').innerHTML = insights.map(ins => `
+    <div class="insight-row">
+      <div class="insight-icon">${ins.icon}</div>
+      <div>
+        <div class="insight-title">${ins.title}</div>
+        <div class="insight-body">${ins.body}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── TOOLTIP ──────────────────────────────────────
+function showTip(e, el) {
+  const t = document.getElementById('tooltip');
+  t.textContent = el.dataset.tip;
+  t.classList.add('show');
+  moveTip(e);
+  el.addEventListener('mousemove', moveTip);
+}
+function moveTip(e) {
+  const t = document.getElementById('tooltip');
+  t.style.left = (e.clientX+14)+'px';
+  t.style.top  = (e.clientY-30)+'px';
+}
+function hideTip() {
+  document.getElementById('tooltip').classList.remove('show');
+}
+
+// ── INIT ─────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
