@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/analytics.html", "destination": "/Analytics.html" },
+    { "source": "/analytics", "destination": "/Analytics.html" },
+    { "source": "/Analytics", "destination": "/Analytics.html" }
+  ]
+}
