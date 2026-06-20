@@ -341,10 +341,10 @@ function todayKey()     { return dateKey(new Date()); }
 function getPomos(k)    { return loadData()[k] || 0; }
 function setPomos(k, n) { const d=loadData(); if(n<=0) delete d[k]; else d[k]=n; saveData(d); }
 
-// Log a timestamped session (ISO string)
-function logTimestamp() {
+// Log a timestamped session (ISO string of the session END time)
+function logTimestamp(endDate) {
   const arr = loadTS();
-  arr.push(new Date().toISOString());
+  arr.push((endDate instanceof Date ? endDate : new Date()).toISOString());
   saveTS(arr);
 }
 
@@ -493,11 +493,12 @@ function previewSound() {
 const MODES = { work:25*60, short:5*60, long:15*60 };
 let timerMode='work', timerTotal=MODES.work, timerLeft=MODES.work;
 let timerRunning=false, timerInterval=null;
+let timerEndTime=null;   // wall-clock timestamp (ms) the running timer should hit 00:00
 const CIRC = 2*Math.PI*68;
 
 function setMode(mode) {
   if (timerRunning) return;
-  timerMode=mode; timerTotal=MODES[mode]; timerLeft=timerTotal;
+  timerMode=mode; timerTotal=MODES[mode]; timerLeft=timerTotal; timerEndTime=null;
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('mode'+mode[0].toUpperCase()+mode.slice(1)).classList.add('active');
   document.getElementById('timerRingWrap').classList.toggle('break', mode!=='work');
@@ -511,19 +512,27 @@ function startTimer() {
   // Unlock AudioContext on first user gesture
   try { const c=getAudioCtx(); if(c.state==='suspended') c.resume(); } catch(e){}
   timerRunning=true;
+  // Anchor completion to the wall clock so background-tab throttling can't stretch the session.
+  timerEndTime = Date.now() + timerLeft*1000;
   document.getElementById('timerPlayBtn').textContent='⏸ Pause';
   document.getElementById('timerSublabel').textContent=timerMode==='work'?'FOCUSING':'BREAK';
   document.getElementById('ringProg').classList.add('running');
-  timerInterval=setInterval(tickTimer,1000);
+  clearInterval(timerInterval);
+  timerInterval=setInterval(tickTimer,250);
+  tickTimer();   // immediate paint so the display is correct from the first frame
 }
 function pauseTimer() {
   timerRunning=false; clearInterval(timerInterval);
+  // Freeze remaining time from the wall clock, then drop the anchor.
+  if (timerEndTime!==null) timerLeft=Math.max(0, Math.ceil((timerEndTime-Date.now())/1000));
+  timerEndTime=null;
   document.getElementById('timerPlayBtn').textContent='▶ Resume';
   document.getElementById('timerSublabel').textContent='PAUSED';
   document.getElementById('ringProg').classList.remove('running');
+  updateTimerDisplay();
 }
 function resetTimer() {
-  timerRunning=false; clearInterval(timerInterval); timerLeft=timerTotal;
+  timerRunning=false; clearInterval(timerInterval); timerEndTime=null; timerLeft=timerTotal;
   document.getElementById('timerPlayBtn').textContent='▶ Start';
   document.getElementById('timerSublabel').textContent='READY';
   document.getElementById('ringProg').classList.remove('running');
@@ -531,15 +540,23 @@ function resetTimer() {
   updateTimerDisplay();
 }
 function tickTimer() {
-  timerLeft--;
+  if (timerEndTime===null) return;
+  const remainingMs = timerEndTime - Date.now();
+  timerLeft = Math.max(0, Math.ceil(remainingMs/1000));
   updateTimerDisplay();
-  if (timerLeft<=0) { clearInterval(timerInterval); timerRunning=false; document.getElementById('ringProg').classList.remove('running'); onTimerComplete(); }
+  if (remainingMs<=0) {
+    const scheduledEnd = timerEndTime;
+    clearInterval(timerInterval); timerRunning=false; timerEndTime=null;
+    document.getElementById('ringProg').classList.remove('running');
+    onTimerComplete(scheduledEnd);
+  }
 }
-function onTimerComplete() {
+function onTimerComplete(endMs) {
   if (timerMode==='work') {
-    const k=todayKey();
+    const endDate = (typeof endMs==='number') ? new Date(endMs) : new Date();
+    const k=dateKey(endDate);
     setPomos(k, getPomos(k)+1);
-    logTimestamp();                     // ← timestamp logged here
+    logTimestamp(endDate);              // ← accurate session END time logged here
     renderToday(); renderCurrentTab(); updateSessionDots();
     document.getElementById('timerPlayBtn').textContent='▶ Start';
     document.getElementById('timerSublabel').textContent='DONE! 🎉';
@@ -713,6 +730,8 @@ function showToast(msg,amber=false){
   document.getElementById('headerDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
   updateTimerDisplay(); renderToday(); updateSessionDots(); renderWeek();
   maybeRequestNotif();
+  // When the tab regains focus, snap the countdown to real elapsed time (finishing it if it already elapsed while hidden).
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && timerRunning) tickTimer(); });
   setInterval(()=>{document.getElementById('headerDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});},60000);
 })();
 </script>
